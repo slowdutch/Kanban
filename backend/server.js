@@ -26,7 +26,7 @@ console.log('Backend server starting...');
 // GET all tasks
 app.get('/api/tasks', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM tasks ORDER BY column_id, created_at DESC');
+    const [rows] = await pool.query('SELECT * FROM tasks ORDER BY column_id, sort_order ASC');
     res.json(rows);
   } catch (error) {
     console.error('Failed to fetch tasks:', error);
@@ -43,6 +43,26 @@ app.post('/api/tasks', async (req, res) => {
     res.status(201).json({ message: 'Task created' });
   } catch (error) {
     console.error('Failed to create task:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST to reorder tasks in a column
+app.post('/api/tasks/reorder', async (req, res) => {
+  try {
+    const { column_id, ordered_ids } = req.body;
+    if (!column_id || !Array.isArray(ordered_ids)) {
+      return res.status(400).json({ error: 'Invalid request body' });
+    }
+
+    // Loop through the provided IDs and update each task with its new index
+    for (const [index, taskId] of ordered_ids.entries()) {
+      await pool.query('UPDATE tasks SET sort_order = ?, column_id = ? WHERE id = ?', [index, column_id, taskId]);
+    }
+    
+    res.json({ message: 'Order updated successfully' });
+  } catch (error) {
+    console.error('Failed to reorder tasks:', error);
     res.status(500).json({ error: error.message });
   }
 });
